@@ -13,8 +13,6 @@ export type Product = {
 export type Category = {
   id: string
   name: string
-  description: string
-  productCount: number
 }
 
 export type Customer = {

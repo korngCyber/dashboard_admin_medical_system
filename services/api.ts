@@ -1,12 +1,8 @@
-/**
- * Base API service for handling HTTP requests
- */
-
+import axios from "@/lib/axios";
 import { toast } from "@/hooks/use-toast";
 
 // API configuration
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002/api/v1"; // Ensure it's the correct backend URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002/api/v1";
 
 // Request options type
 type RequestOptions = {
@@ -27,79 +23,38 @@ type ErrorResponse = {
  * Handles API requests with error handling and authentication
  */
 export async function apiRequest<T>(
-  endpoint: string,
-  options: RequestOptions = {}
+    endpoint: string,
+    options: RequestOptions = {}
 ): Promise<T> {
   const { method = "GET", headers = {}, body, requiresAuth = true } = options;
 
-  // Construct request headers
-  const requestHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...headers,
-  };
-
-  // Attach Authorization header if required
-  if (requiresAuth) {
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      requestHeaders["Authorization"] = `Bearer ${token}`;
-    }
-  }
-
-  // Construct request options
-  const requestOptions: RequestInit = {
-    method,
-    headers: requestHeaders,
-  };
-
-  // Add request body for non-GET methods
-  if (body && method !== "GET") {
-    requestOptions.body = JSON.stringify(body);
-  }
-
-  // Dev logging
-  if (process.env.NODE_ENV === "development") {
-    console.log(`[API] ${method} ${API_BASE_URL}${endpoint}`, {
-      headers: requestHeaders,
-      body,
-    });
-  }
-
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, requestOptions);
+    const response = await axios.request<T>({
+      url: endpoint,
+      method,
+      headers,
+      data: method !== "GET" ? body : undefined,
+    });
+
+    return response.data;
+  } catch (error: any) {
+    console.error("API request failed:", error);
 
     // Handle 401 Unauthorized
-    if (response.status === 401) {
+    if (error.response?.status === 401) {
       localStorage.removeItem("authToken");
       localStorage.removeItem("isAuthenticated");
       window.location.href = "/login";
       throw new Error("Your session has expired. Please log in again.");
     }
 
-    const data = await response.json();
-
-    // Handle other errors
-    if (!response.ok) {
-      const error: ErrorResponse = {
-        message: data.message || "An unexpected error occurred",
-        errors: data.errors,
-        status: response.status,
-      };
-      throw error;
-    }
-
-    return data as T;
-  } catch (error) {
-    console.error("API request failed:", error);
-
     // Show toast error
-    if (error instanceof Error) {
-      toast({
-        title: "Error",
-        description: error.message || "An unexpected error occurred",
-        variant: "destructive",
-      });
-    }
+    const errorMessage = error.response?.data?.message || "An unexpected error occurred";
+    toast({
+      title: "Error",
+      description: errorMessage,
+      variant: "destructive",
+    });
 
     throw error;
   }
@@ -110,28 +65,28 @@ export async function apiRequest<T>(
  */
 export const api = {
   get: <T>(
-    endpoint: string,
-    options?: Omit<RequestOptions, "method" | "body">
+      endpoint: string,
+      options?: Omit<RequestOptions, "method" | "body">
   ) => apiRequest<T>(endpoint, { ...options, method: "GET" }),
 
   post: <T>(
-    endpoint: string,
-    body: any,
-    options?: Omit<RequestOptions, "method">
+      endpoint: string,
+      body: any,
+      options?: Omit<RequestOptions, "method">
   ) => apiRequest<T>(endpoint, { ...options, method: "POST", body }),
 
   put: <T>(
-    endpoint: string,
-    body: any,
-    options?: Omit<RequestOptions, "method">
+      endpoint: string,
+      body: any,
+      options?: Omit<RequestOptions, "method">
   ) => apiRequest<T>(endpoint, { ...options, method: "PUT", body }),
 
   patch: <T>(
-    endpoint: string,
-    body: any,
-    options?: Omit<RequestOptions, "method">
+      endpoint: string,
+      body: any,
+      options?: Omit<RequestOptions, "method">
   ) => apiRequest<T>(endpoint, { ...options, method: "PATCH", body }),
 
   delete: <T>(endpoint: string, options?: Omit<RequestOptions, "method">) =>
-    apiRequest<T>(endpoint, { ...options, method: "DELETE" }),
+      apiRequest<T>(endpoint, { ...options, method: "DELETE" }),
 };
