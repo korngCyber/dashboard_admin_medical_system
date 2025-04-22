@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -16,13 +16,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { mockCategories } from "@/lib/mock-data"
 import { DataTable } from "@/components/data-table"
 import { PageHeader } from "@/components/page-header"
 import type { Category } from "@/types"
+import { categoryService } from "@/services/category-service" // import category service
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>(mockCategories)
+  const [categories, setCategories] = useState<Category[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -33,17 +33,32 @@ export default function CategoriesPage() {
   })
   const { toast } = useToast()
 
+  // Fetch categories on load
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const fetchedCategories = await categoryService.getCategories()
+        setCategories(fetchedCategories)
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "An error occurred while fetching categories.",
+          variant: "destructive",
+        })
+      }
+    }
+    fetchCategories()
+  }, [])
+
   const columns: ColumnDef<Category>[] = [
     {
       accessorKey: "name",
-      header: ({ column }) => {
-        return (
-          <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Name
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Name
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
     },
     {
@@ -53,14 +68,12 @@ export default function CategoriesPage() {
     },
     {
       accessorKey: "productCount",
-      header: ({ column }) => {
-        return (
-          <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Products
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Products
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => <div>{row.getValue("productCount")}</div>,
     },
     {
@@ -95,30 +108,27 @@ export default function CategoriesPage() {
     },
   ]
 
-  const handleAddCategory = () => {
-    try {
-      // Validate form
-      if (!newCategory.name) {
-        toast({
-          title: "Validation Error",
-          description: "Please enter a category name",
-          variant: "destructive",
-        })
-        return
-      }
-
-      const id = Math.random().toString(36).substring(2, 9)
-      const category = { id, ...newCategory, productCount: 0 }
-      setCategories([...categories, category])
-      setNewCategory({
-        name: "",
-        description: "",
-      })
-      setIsAddDialogOpen(false)
+  const handleAddCategory = async () => {
+    if (!newCategory.name) {
       toast({
-        title: "Category added",
-        description: `${category.name} has been added successfully`,
+        title: "Validation Error",
+        description: "Please enter a category name",
+        variant: "destructive",
       })
+      return
+    }
+
+    try {
+      const addedCategory = await categoryService.createCategory(newCategory)
+      if (addedCategory) {
+        setCategories((prevCategories) => [...prevCategories, addedCategory])
+        setNewCategory({ name: "", description: "" })
+        setIsAddDialogOpen(false)
+        toast({
+          title: "Category added",
+          description: `${addedCategory.name} has been added successfully`,
+        })
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -128,30 +138,31 @@ export default function CategoriesPage() {
     }
   }
 
-  const handleUpdateCategory = () => {
-    try {
-      if (!currentCategory) return
-
-      // Validate form
-      if (!currentCategory.name) {
-        toast({
-          title: "Validation Error",
-          description: "Please enter a category name",
-          variant: "destructive",
-        })
-        return
-      }
-
-      const updatedCategories = categories.map((category) =>
-        category.id === currentCategory.id ? currentCategory : category,
-      )
-
-      setCategories(updatedCategories)
-      setIsEditDialogOpen(false)
+  const handleUpdateCategory = async () => {
+    if (!currentCategory) return
+    if (!currentCategory.name) {
       toast({
-        title: "Category updated",
-        description: `${currentCategory.name} has been updated successfully`,
+        title: "Validation Error",
+        description: "Please enter a category name",
+        variant: "destructive",
       })
+      return
+    }
+
+    try {
+      const updatedCategory = await categoryService.updateCategory(currentCategory.id, currentCategory)
+      if (updatedCategory) {
+        setCategories((prevCategories) =>
+          prevCategories.map((category) =>
+            category.id === currentCategory.id ? updatedCategory : category,
+          ),
+        )
+        setIsEditDialogOpen(false)
+        toast({
+          title: "Category updated",
+          description: `${updatedCategory.name} has been updated successfully`,
+        })
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -161,18 +172,21 @@ export default function CategoriesPage() {
     }
   }
 
-  const handleDeleteCategory = () => {
+  const handleDeleteCategory = async () => {
+    if (!currentCategory) return
+
     try {
-      if (!currentCategory) return
-
-      const filteredCategories = categories.filter((category) => category.id !== currentCategory.id)
-
-      setCategories(filteredCategories)
-      setIsDeleteDialogOpen(false)
-      toast({
-        title: "Category deleted",
-        description: `${currentCategory.name} has been deleted successfully`,
-      })
+      const success = await categoryService.deleteCategory(currentCategory.id)
+      if (success) {
+        setCategories((prevCategories) =>
+          prevCategories.filter((category) => category.id !== currentCategory.id),
+        )
+        setIsDeleteDialogOpen(false)
+        toast({
+          title: "Category deleted",
+          description: `${currentCategory.name} has been deleted successfully`,
+        })
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -258,7 +272,7 @@ export default function CategoriesPage() {
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdateCategory}>Update Category</Button>
+            <Button onClick={handleUpdateCategory}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -273,29 +287,17 @@ export default function CategoriesPage() {
             </DialogDescription>
           </DialogHeader>
           {currentCategory && (
-            <div className="py-4">
-              <p>
-                You are about to delete <strong>{currentCategory.name}</strong>.
-              </p>
-              {currentCategory.productCount > 0 && (
-                <p className="text-destructive mt-2">
-                  Warning: This category contains {currentCategory.productCount} products. Deleting this category will
-                  not delete the associated products.
-                </p>
-              )}
-            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteCategory}>
+                Delete Category
+              </Button>
+            </DialogFooter>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteCategory}>
-              Delete
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   )
 }
-

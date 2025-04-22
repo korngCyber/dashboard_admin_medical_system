@@ -1,23 +1,17 @@
-import type { Category } from "@/types"
-import { mockCategories } from "@/lib/mock-data"
+import { api } from "@/services/api";
+import type { Category } from "@/types";
 
-/**
- * Category service for handling category-related operations
- */
 export const categoryService = {
   /**
    * Get all categories
    */
   getCategories: async (): Promise<Category[]> => {
     try {
-      // For demo purposes, we're using mock data
-      return mockCategories
-
-      // In a real app with an API:
-      // return await api.get<Category[]>('/categories')
+      const response = await api.get<Category[]>("/category");  // Adjusted endpoint
+      return response;
     } catch (error) {
-      console.error("Failed to fetch categories:", error)
-      return []
+      console.error("Failed to fetch categories:", error);
+      return [];
     }
   },
 
@@ -26,61 +20,42 @@ export const categoryService = {
    */
   getCategoryById: async (id: string): Promise<Category | null> => {
     try {
-      // For demo purposes, we're using mock data
-      const category = mockCategories.find((c) => c.id === id)
-      return category || null
-
-      // In a real app with an API:
-      // return await api.get<Category>(`/categories/${id}`)
+      const response = await api.get<Category>(`/category/${id}`);  // Adjusted endpoint
+      return response;
     } catch (error) {
-      console.error(`Failed to fetch category with ID ${id}:`, error)
-      return null
+      console.error(`Failed to fetch category with ID ${id}:`, error);
+      return null;
     }
   },
 
   /**
    * Create a new category
    */
-  createCategory: async (category: Omit<Category, "id" | "productCount">): Promise<Category | null> => {
+  createCategory: async (
+    category: Omit<Category, "id" | "productCount">
+  ): Promise<Category | null> => {
     try {
-      // For demo purposes, we're generating a mock response
-      const newCategory: Category = {
-        ...category,
-        id: Math.random().toString(36).substring(2, 9),
-        productCount: 0,
-      }
-
-      return newCategory
-
-      // In a real app with an API:
-      // return await api.post<Category>('/categories', category)
+      const response = await api.post<Category>("/category", category);  // Adjusted endpoint
+      return response;
     } catch (error) {
-      console.error("Failed to create category:", error)
-      return null
+      console.error("Failed to create category:", error);
+      return null;
     }
   },
 
   /**
    * Update an existing category
    */
-  updateCategory: async (id: string, category: Partial<Omit<Category, "productCount">>): Promise<Category | null> => {
+  updateCategory: async (
+    id: string,
+    category: Partial<Omit<Category, "productCount">>
+  ): Promise<Category | null> => {
     try {
-      // For demo purposes, we're generating a mock response
-      const existingCategory = mockCategories.find((c) => c.id === id)
-      if (!existingCategory) return null
-
-      const updatedCategory: Category = {
-        ...existingCategory,
-        ...category,
-      }
-
-      return updatedCategory
-
-      // In a real app with an API:
-      // return await api.put<Category>(`/categories/${id}`, category)
+      const response = await api.put<Category>(`/category/${id}`, category);  // Adjusted endpoint
+      return response;
     } catch (error) {
-      console.error(`Failed to update category with ID ${id}:`, error)
-      return null
+      console.error(`Failed to update category with ID ${id}:`, error);
+      return null;
     }
   },
 
@@ -89,16 +64,11 @@ export const categoryService = {
    */
   deleteCategory: async (id: string): Promise<boolean> => {
     try {
-      // For demo purposes, we're returning a success response
-      return true
-
-      // In a real app with an API:
-      // await api.delete(`/categories/${id}`)
-      // return true
+      await api.delete(`/category/${id}`);  // Adjusted endpoint
+      return true;
     } catch (error) {
-      console.error(`Failed to delete category with ID ${id}:`, error)
-      return false
+      console.error(`Failed to delete category with ID ${id}:`, error);
+      return false;
     }
   },
-}
-
+};
