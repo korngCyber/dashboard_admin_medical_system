@@ -35,7 +35,7 @@ interface ApiResponse {
   totalItems: number;
   totalPages: number;
   currentPage: number;
-  data: ApiCategory[];
+  categories: ApiCategory[]; // Changed from 'data' to 'categories' to match API response
 }
 
 export default function CategoriesPage() {
@@ -61,9 +61,9 @@ export default function CategoriesPage() {
         // Cast response to our defined type
         const typedResponse = response as unknown as ApiResponse;
 
-        // Extract and transform data
-        if (typedResponse && Array.isArray(typedResponse.data)) {
-          const transformedCategories = typedResponse.data.map((category) => ({
+        // Extract and transform data - updated to use 'categories' instead of 'data'
+        if (typedResponse && Array.isArray(typedResponse.categories)) {
+          const transformedCategories = typedResponse.categories.map((category) => ({
             id: category.catId.toString(),
             name: category.catName,
           }));
