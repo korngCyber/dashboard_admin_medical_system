@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, Plus, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -17,30 +17,286 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { mockProducts, mockCategories } from "@/lib/mock-data"
 import { DataTable } from "@/components/data-table"
 import { PageHeader } from "@/components/page-header"
 import { StatusBadge } from "@/components/status-badge"
 import type { Product } from "@/types"
 import { Textarea } from "@/components/ui/textarea"
+import { productService } from "@/services"
+import { categoryService } from "@/services/category-service"
+
+interface ApiProductImage {
+  id: number;
+  imageUrl: string;
+}
+
+interface ApiProduct {
+  proId: number;
+  proName: string;
+  proDescription: string;
+  proPrice: string;
+  proStock: number;
+  proStatus: string;
+  catId: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: null | string;
+  images: ApiProductImage[];
+}
+
+interface ApiResponse {
+  message: string;
+  totalItems: number;
+  totalPages: number;
+  currentPage: number;
+  products: ApiProduct[];
+}
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>(mockProducts)
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [currentProduct, setCurrentProduct] = useState<Product | null>(null)
-  const [newProduct, setNewProduct] = useState<Omit<Product, "id">>({
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [currentProduct, setCurrentProduct] = useState<(Product & { image?: File | string }) | null>(null);
+  const [originalProduct, setOriginalProduct] = useState<Product | null>(null); // Keep track of the original product before edits
+  const [newProduct, setNewProduct] = useState<Omit<Product, "id"> & { image?: File | null }>({
     name: "",
     description: "",
     price: 0,
     stock: 0,
     category: "",
     status: "in-stock",
-  })
-  const { toast } = useToast()
+    image: null,
+  });
+  const { toast } = useToast();
+
+  // First fetch categories, then fetch products
+  useEffect(() => {
+    const fetchCategoriesAndProducts = async () => {
+      try {
+        // First fetch categories
+        const response = await categoryService.getCategories();
+        console.log("Categories response:", response);
+        
+        // Ensure we access the correct field in the API response
+        const categoryData = response.categories || []; // Adjust based on actual API response structure
+        
+        const transformedCategories = categoryData.map((category: any) => ({
+          id: category.catId.toString(),
+          name: category.catName,
+        }));
+        
+        setCategories(transformedCategories);
+        console.log("Transformed categories:", transformedCategories);
+        
+        // Then fetch products
+        await fetchProducts(transformedCategories);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        toast({
+          title: "Error",
+          description: "An error occurred while fetching categories.",
+          variant: "destructive",
+        });
+        setLoading(false);
+      }
+    };
+    
+    fetchCategoriesAndProducts();
+  }, [toast]);
+  
+  const fetchProducts = async (categoriesList = categories) => {
+    setLoading(true);
+    try {
+      const response = await productService.getProduct();
+      const typedResponse = response as unknown as ApiResponse;
+      
+      if (typedResponse && Array.isArray(typedResponse.products)) {
+        const transformedProducts = typedResponse.products.map((product) => {
+          const categoryId = product.catId.toString();
+          const category = categoriesList.find(cat => cat.id === categoryId);
+          
+          return {
+            id: product.proId.toString(),
+            name: product.proName,
+            description: product.proDescription,
+            price: parseFloat(product.proPrice),
+            stock: product.proStock,
+            category: categoryId, // Store category ID for proper editing
+            categoryName: category?.name || "Unknown",
+            status: product.proStatus as "in-stock" | "low-stock" | "out-of-stock",
+            image: product.images?.[0]?.imageUrl || "",
+          };
+        });
+        
+        console.log("Transformed products with categories:", transformedProducts);
+        setProducts(transformedProducts);
+      } else {
+        console.warn("Unexpected response format:", response);
+        setProducts([]);
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast({
+        title: "Error",
+        description: "An error occurred while fetching products.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddProduct = async () => {
+    try {
+      if (!newProduct.name || !newProduct.category || newProduct.price <= 0 || newProduct.stock < 0) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all required fields with valid values",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("proName", newProduct.name);
+      formData.append("proDescription", newProduct.description);
+      formData.append("proPrice", newProduct.price.toString());
+      formData.append("proStock", newProduct.stock.toString());
+      formData.append("proStatus", newProduct.status);
+      formData.append("catId", newProduct.category);
+      if (newProduct.image) {
+        formData.append("images", newProduct.image); // Append the image file
+      }
+
+      await productService.createProduct(formData);
+      setIsAddDialogOpen(false);
+
+      toast({
+        title: "Product added",
+        description: `${newProduct.name} has been added successfully`,
+      });
+
+      setNewProduct({
+        name: "",
+        description: "",
+        price: 0,
+        stock: 0,
+        category: "",
+        status: "in-stock",
+        image: null,
+      });
+
+      // Refresh the products list
+      await fetchProducts();
+    } catch (error) {
+      console.error("Error adding product:", error);
+      toast({
+        title: "Error",
+        description: "An error occurred while adding the product",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateProduct = async () => {
+    try {
+      if (!currentProduct) return;
+
+      if (!currentProduct.name || !currentProduct.category || currentProduct.price <= 0 || currentProduct.stock < 0) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all required fields with valid values",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Sending update for product:', currentProduct);
+
+      const formData = new FormData();
+      formData.append("proName", currentProduct.name);
+      formData.append("proDescription", currentProduct.description);
+      formData.append("proPrice", currentProduct.price.toString());
+      formData.append("proStock", currentProduct.stock.toString());
+      formData.append("proStatus", currentProduct.status);
+      formData.append("catId", currentProduct.category);
+      if (currentProduct.image && typeof currentProduct.image !== "string") {
+        formData.append("images", currentProduct.image); // Append the new image file
+      } else if (typeof currentProduct.image === "string") {
+        formData.append("existingImagePath", currentProduct.image); // Keep the existing image path
+      }
+
+      await productService.updateProduct(currentProduct.id, formData);
+      setIsEditDialogOpen(false);
+
+      toast({
+        title: "Product updated",
+        description: `${currentProduct.name} has been updated successfully`,
+      });
+
+      await fetchProducts();
+    } catch (error) {
+      console.error("Error updating product:", error);
+      toast({
+        title: "Error",
+        description: `Failed to update product: ${
+          error instanceof Error
+            ? (error as any)?.response?.data?.message || error.message
+            : "An unknown error occurred"
+        }`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    try {
+      if (!currentProduct) return;
+
+      await productService.deleteProduct(currentProduct.id);
+      setIsDeleteDialogOpen(false);
+
+      toast({
+        title: "Product deleted",
+        description: `${currentProduct.name} has been deleted successfully`,
+      });
+
+      // Refresh the products list
+      await fetchProducts();
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      toast({
+        title: "Error",
+        description: "An error occurred while deleting the product",
+        variant: "destructive",
+      });
+    }
+  };
 
   const columns: ColumnDef<Product>[] = [
+    {
+      accessorKey: "image",
+      header: "Image",
+      cell: ({ row }) => {
+        const imageUrl = row.getValue("image");
+        return (
+          <div className="flex items-center justify-center">
+            {imageUrl ? (
+              <img
+                src={`http://localhost:3002/${imageUrl}`} // Adjust base URL if needed
+                alt="Product"
+                className="h-12 w-12 object-cover rounded"
+              />
+            ) : (
+              <span>No Image</span>
+            )}
+          </div>
+        );
+      },
+    },
     {
       accessorKey: "name",
       header: ({ column }) => {
@@ -49,14 +305,14 @@ export default function ProductsPage() {
             Name
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
     },
     {
-      accessorKey: "category",
+      accessorKey: "categoryName", // Display the category name
       header: "Category",
-      cell: ({ row }) => <div>{row.getValue("category")}</div>,
+      cell: ({ row }) => <div>{row.getValue("categoryName")}</div>,
     },
     {
       accessorKey: "price",
@@ -66,7 +322,7 @@ export default function ProductsPage() {
             Price
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => <div className="font-medium text-primary">${row.getValue("price")}</div>,
     },
@@ -78,7 +334,7 @@ export default function ProductsPage() {
             Stock
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => <div>{row.getValue("stock")}</div>,
     },
@@ -86,21 +342,23 @@ export default function ProductsPage() {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => {
-        return <StatusBadge status={row.getValue("status")} />
+        return <StatusBadge status={row.getValue("status")} />;
       },
     },
     {
       id: "actions",
       cell: ({ row }) => {
-        const product = row.original
+        const product = row.original;
         return (
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => {
-                setCurrentProduct(product)
-                setIsEditDialogOpen(true)
+                // Save both the current and original product state
+                setCurrentProduct({...product});
+                setOriginalProduct({...product});
+                setIsEditDialogOpen(true);
               }}
               className="h-8 w-8 rounded-full"
             >
@@ -111,8 +369,8 @@ export default function ProductsPage() {
               variant="ghost"
               size="icon"
               onClick={() => {
-                setCurrentProduct(product)
-                setIsDeleteDialogOpen(true)
+                setCurrentProduct(product);
+                setIsDeleteDialogOpen(true);
               }}
               className="h-8 w-8 rounded-full text-destructive hover:text-destructive"
             >
@@ -120,99 +378,10 @@ export default function ProductsPage() {
               <span className="sr-only">Delete</span>
             </Button>
           </div>
-        )
+        );
       },
     },
-  ]
-
-  const handleAddProduct = () => {
-    try {
-      // Validate form
-      if (!newProduct.name || !newProduct.category) {
-        toast({
-          title: "Validation Error",
-          description: "Please fill in all required fields",
-          variant: "destructive",
-        })
-        return
-      }
-
-      const id = Math.random().toString(36).substring(2, 9)
-      const product = { id, ...newProduct }
-      setProducts([...products, product])
-      setNewProduct({
-        name: "",
-        description: "",
-        price: 0,
-        stock: 0,
-        category: "",
-        status: "in-stock",
-      })
-      setIsAddDialogOpen(false)
-      toast({
-        title: "Product added",
-        description: `${product.name} has been added successfully`,
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An error occurred while adding the product",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleUpdateProduct = () => {
-    try {
-      if (!currentProduct) return
-
-      // Validate form
-      if (!currentProduct.name || !currentProduct.category) {
-        toast({
-          title: "Validation Error",
-          description: "Please fill in all required fields",
-          variant: "destructive",
-        })
-        return
-      }
-
-      const updatedProducts = products.map((product) => (product.id === currentProduct.id ? currentProduct : product))
-
-      setProducts(updatedProducts)
-      setIsEditDialogOpen(false)
-      toast({
-        title: "Product updated",
-        description: `${currentProduct.name} has been updated successfully`,
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An error occurred while updating the product",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleDeleteProduct = () => {
-    try {
-      if (!currentProduct) return
-
-      const filteredProducts = products.filter((product) => product.id !== currentProduct.id)
-
-      setProducts(filteredProducts)
-      setIsDeleteDialogOpen(false)
-      toast({
-        title: "Product deleted",
-        description: `${currentProduct.name} has been deleted successfully`,
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An error occurred while deleting the product",
-        variant: "destructive",
-      })
-    }
-  }
+  ];
 
   return (
     <div className="flex flex-col gap-4">
@@ -281,8 +450,8 @@ export default function ProductsPage() {
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockCategories.map((category) => (
-                        <SelectItem key={category.id} value={category.name}>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
                           {category.name}
                         </SelectItem>
                       ))}
@@ -308,6 +477,21 @@ export default function ProductsPage() {
                   </Select>
                 </div>
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="image">Image</Label>
+                <Input
+                  id="image"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setNewProduct({ ...newProduct, image: file }); // Store the file in the state
+                    }
+                  }}
+                  className="bg-background/60 focus:bg-background transition-colors"
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
@@ -321,10 +505,34 @@ export default function ProductsPage() {
         </Dialog>
       </PageHeader>
 
-      <DataTable columns={columns} data={products} searchKey="name" searchPlaceholder="Filter products..." />
+      {loading ? (
+        <div className="flex justify-center items-center py-4">
+          <span>Loading...</span>
+        </div>
+      ) : (
+        <DataTable 
+          columns={columns} 
+          data={products} 
+          searchKey="name" 
+          searchPlaceholder="Filter products..." 
+        />
+      )}
 
-      {/* Edit Product Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog 
+        open={isEditDialogOpen} 
+        onOpenChange={(open) => {
+          if (!open) {
+            // Reset any file input state when dialog closes
+            if (currentProduct && originalProduct && 'image' in originalProduct && typeof originalProduct.image === 'string') {
+              setCurrentProduct({
+                ...currentProduct,
+                image: typeof currentProduct.image === 'string' ? currentProduct.image : originalProduct.image
+              });
+            }
+          }
+          setIsEditDialogOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle>Edit Product</DialogTitle>
@@ -387,8 +595,8 @@ export default function ProductsPage() {
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockCategories.map((category) => (
-                        <SelectItem key={category.id} value={category.name}>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
                           {category.name}
                         </SelectItem>
                       ))}
@@ -414,10 +622,46 @@ export default function ProductsPage() {
                   </Select>
                 </div>
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-image">Image</Label>
+
+                {/* Show current image */}
+                {currentProduct.image && typeof currentProduct.image === 'string' && (
+                  <div className="mb-2">
+                    <p className="text-sm text-muted-foreground">Current image:</p>
+                    <img
+                      src={`http://localhost:3002/${currentProduct.image}`}
+                      alt="Current product"
+                      className="h-20 w-20 object-cover rounded mt-1"
+                    />
+                  </div>
+                )}
+
+                {/* Image upload input */}
+                <Input
+                  id="edit-image"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setCurrentProduct({ ...currentProduct, image: file as File });
+                    }
+                  }}
+                  className="bg-background/60 focus:bg-background transition-colors"
+                />
+                <p className="text-xs text-muted-foreground">Leave empty to keep current image</p>
+              </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              // Reset to original state if cancel is clicked
+              if (originalProduct) {
+                setCurrentProduct({...originalProduct});
+              }
+              setIsEditDialogOpen(false);
+            }}>
               Cancel
             </Button>
             <Button variant="gradient" onClick={handleUpdateProduct}>
@@ -427,7 +671,6 @@ export default function ProductsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Product Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -454,6 +697,5 @@ export default function ProductsPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
-

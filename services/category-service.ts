@@ -1,74 +1,41 @@
-import { api } from "@/services/api";
+import axios from "axios";
 import type { Category } from "@/types";
 
+const API_URL = "http://localhost:3002/api/v1/category/";
+
 export const categoryService = {
-  /**
-   * Get all categories
-   */
-  getCategories: async (): Promise<Category[]> => {
-    try {
-      const response = await api.get<Category[]>("/category");  // Adjusted endpoint
-      return response;
-    } catch (error) {
-      console.error("Failed to fetch categories:", error);
-      return [];
-    }
+  async getCategories() {
+    const res = await axios.get(API_URL);
+    return res.data;
   },
 
-  /**
-   * Get category by ID
-   */
-  getCategoryById: async (id: string): Promise<Category | null> => {
-    try {
-      const response = await api.get<Category>(`/category/${id}`);  // Adjusted endpoint
-      return response;
-    } catch (error) {
-      console.error(`Failed to fetch category with ID ${id}:`, error);
-      return null;
-    }
+
+  async createCategory(data: Omit<Category, "id">) {
+    const res = await axios.post(API_URL, {
+      catName: data.name,
+    });
+
+    const newCat = res.data?.data;
+    return {
+      id: newCat.catId.toString(),
+      name: newCat.catName,
+    };
   },
 
-  /**
-   * Create a new category
-   */
-  createCategory: async (
-    category: Omit<Category, "id" | "productCount">
-  ): Promise<Category | null> => {
-    try {
-      const response = await api.post<Category>("/category", category);  // Adjusted endpoint
-      return response;
-    } catch (error) {
-      console.error("Failed to create category:", error);
-      return null;
-    }
+  async updateCategory(id: string, data: Category) {
+    const res = await axios.put(`${API_URL}${id}`, {
+      catName: data.name,
+    });
+
+    const updatedCat = res.data?.data;
+    return {
+      id: updatedCat.catId.toString(),
+      name: updatedCat.catName,
+    };
   },
 
-  /**
-   * Update an existing category
-   */
-  updateCategory: async (
-    id: string,
-    category: Partial<Omit<Category, "productCount">>
-  ): Promise<Category | null> => {
-    try {
-      const response = await api.put<Category>(`/category/${id}`, category);  // Adjusted endpoint
-      return response;
-    } catch (error) {
-      console.error(`Failed to update category with ID ${id}:`, error);
-      return null;
-    }
-  },
-
-  /**
-   * Delete a category
-   */
-  deleteCategory: async (id: string): Promise<boolean> => {
-    try {
-      await api.delete(`/category/${id}`);  // Adjusted endpoint
-      return true;
-    } catch (error) {
-      console.error(`Failed to delete category with ID ${id}:`, error);
-      return false;
-    }
+  async deleteCategory(id: string) {
+    await axios.delete(`${API_URL}${id}`);
+    return true;
   },
 };

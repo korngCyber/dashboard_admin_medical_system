@@ -6,14 +6,12 @@ import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
-  BarChart3,
   Box,
   ClipboardList,
   LogOut,
   Menu,
   Moon,
   Package,
-  Settings,
   ShoppingCart,
   Sun,
   Users,
@@ -72,12 +70,10 @@ export default function DashboardLayout({
   }
 
   const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
     { name: "Products", href: "/dashboard/products", icon: Package },
     { name: "Customers", href: "/dashboard/customers", icon: Users },
     { name: "Categories", href: "/dashboard/categories", icon: Box },
     { name: "Orders", href: "/dashboard/orders", icon: ShoppingCart },
-    { name: "Settings", href: "/dashboard/settings", icon: Settings },
   ]
 
   const toggleTheme = () => {

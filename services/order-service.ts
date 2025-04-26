@@ -1,120 +1,71 @@
-import type { Order } from "@/types"
-import { mockOrders } from "@/lib/mock-data"
+import axios from "axios";
+import type { Order } from "@/types";
 
-/**
- * Order service for handling order-related operations
- */
+const API_URL = "http://localhost:3002/api/v1/order/";
+
 export const orderService = {
-  /**
-   * Get all orders
-   */
-  getOrders: async (): Promise<Order[]> => {
+  async getOrders() {
     try {
-      // For demo purposes, we're using mock data
-      return mockOrders
+      const res = await axios.get(API_URL);
 
-      // In a real app with an API:
-      // return await api.get<Order[]>('/orders')
-    } catch (error) {
-      console.error("Failed to fetch orders:", error)
-      return []
-    }
-  },
-
-  /**
-   * Get order by ID
-   */
-  getOrderById: async (id: string): Promise<Order | null> => {
-    try {
-      // For demo purposes, we're using mock data
-      const order = mockOrders.find((o) => o.id === id)
-      return order || null
-
-      // In a real app with an API:
-      // return await api.get<Order>(`/orders/${id}`)
-    } catch (error) {
-      console.error(`Failed to fetch order with ID ${id}:`, error)
-      return null
-    }
-  },
-
-  /**
-   * Update order status
-   */
-  updateOrderStatus: async (id: string, status: Order["status"]): Promise<Order | null> => {
-    try {
-      // For demo purposes, we're generating a mock response
-      const order = mockOrders.find((o) => o.id === id)
-      if (!order) return null
-
-      const updatedOrder: Order = {
-        ...order,
-        status,
+      if (res.data && Array.isArray(res.data)) {
+        return res.data;
+      } else if (res.data && Array.isArray(res.data.orders)) {
+        return res.data.orders;
+      } else if (res.data && typeof res.data === "object") {
+        const possibleArrays = ["orders", "data", "items", "results"];
+        for (const key of possibleArrays) {
+          if (res.data[key] && Array.isArray(res.data[key])) {
+            return res.data[key];
+          }
+        }
       }
 
-      return updatedOrder
-
-      // In a real app with an API:
-      // return await api.patch<Order>(`/orders/${id}/status`, { status })
-    } catch (error) {
-      console.error(`Failed to update status for order with ID ${id}:`, error)
-      return null
+      console.error("Unexpected API response format:", res.data);
+      return [];
+    } catch (error: any) {
+      console.error("Error fetching orders:", error.response?.data || error.message);
+      throw error;
     }
   },
 
-  /**
-   * Get orders by customer ID
-   */
-  getOrdersByCustomer: async (customerId: string): Promise<Order[]> => {
+  async getOrderById(id: string) {
     try {
-      // For demo purposes, we're using mock data
-      return mockOrders.filter((o) => o.customer.id === customerId)
-
-      // In a real app with an API:
-      // return await api.get<Order[]>(`/customers/${customerId}/orders`)
-    } catch (error) {
-      console.error(`Failed to fetch orders for customer with ID ${customerId}:`, error)
-      return []
+      const res = await axios.get(`${API_URL}${id}`);
+      return res.data;
+    } catch (error: any) {
+      console.error("Error fetching order details:", error.response?.data || error.message);
+      throw error;
     }
   },
 
-  /**
-   * Get order statistics
-   */
-  getOrderStats: async (): Promise<{
-    total: number
-    pending: number
-    processing: number
-    shipped: number
-    delivered: number
-    cancelled: number
-  }> => {
+  async createOrder(data: Order) {
     try {
-      // For demo purposes, we're calculating from mock data
-      const stats = {
-        total: mockOrders.length,
-        pending: mockOrders.filter((o) => o.status === "pending").length,
-        processing: mockOrders.filter((o) => o.status === "processing").length,
-        shipped: mockOrders.filter((o) => o.status === "shipped").length,
-        delivered: mockOrders.filter((o) => o.status === "delivered").length,
-        cancelled: mockOrders.filter((o) => o.status === "cancelled").length,
-      }
-
-      return stats
-
-      // In a real app with an API:
-      // return await api.get<OrderStats>('/orders/stats')
-    } catch (error) {
-      console.error("Failed to fetch order statistics:", error)
-      return {
-        total: 0,
-        pending: 0,
-        processing: 0,
-        shipped: 0,
-        delivered: 0,
-        cancelled: 0,
-      }
+      const res = await axios.post(API_URL, data);
+      return res.data.order || res.data;
+    } catch (error: any) {
+      console.error("Error creating order:", error.response?.data || error.message);
+      throw error;
     }
   },
-}
 
+  async updateOrder(id: string, data: Order) {
+    try {
+      const res = await axios.put(`${API_URL}${id}`, data);
+      return res.data.order || res.data;
+    } catch (error: any) {
+      console.error("Error updating order:", error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  async deleteOrder(id: string) {
+    try {
+      await axios.delete(`${API_URL}${id}`);
+      return true;
+    } catch (error: any) {
+      console.error("Error deleting order:", error.response?.data || error.message);
+      throw error;
+    }
+  },
+};

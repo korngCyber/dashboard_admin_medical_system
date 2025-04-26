@@ -1,121 +1,147 @@
-import type { Customer } from "@/types"
-import { mockCustomers } from "@/lib/mock-data"
+import axios from "axios";
+import type { Customer } from "@/types";
 
-/**
- * Customer service for handling customer-related operations
- */
+const API_URL = "http://localhost:3002/api/v1/customer/";
+
 export const customerService = {
-  /**
-   * Get all customers
-   */
-  getCustomers: async (): Promise<Customer[]> => {
+  async getCustomers() {
     try {
-      // For demo purposes, we're using mock data
-      return mockCustomers
-
-      // In a real app with an API:
-      // return await api.get<Customer[]>('/customers')
-    } catch (error) {
-      console.error("Failed to fetch customers:", error)
-      return []
+      const res = await axios.get(API_URL);
+      
+      // Check if the response contains an array of customers
+      // If it's not an array, ensure we return an array for the page component
+      if (res.data && Array.isArray(res.data)) {
+        return res.data;
+      } else if (res.data && Array.isArray(res.data.customers)) {
+        return res.data.customers;
+      } else if (res.data && typeof res.data === 'object') {
+        // If it's a single customer object, wrap it in an array
+        if (res.data.cusId) {
+          return [res.data];
+        }
+        
+        // If it's another object structure, check common response patterns
+        const possibleArrays = ['customers', 'data', 'items', 'results'];
+        for (const key of possibleArrays) {
+          if (res.data[key] && Array.isArray(res.data[key])) {
+            return res.data[key];
+          }
+        }
+      }
+      
+      // If we can't identify the structure, log it and return empty array to prevent errors
+      console.error("Unexpected API response format:", res.data);
+      return [];
+    } catch (error: any) {
+      console.error(
+        "Error fetching customers:", 
+        error.response?.data || error.message
+      );
+      throw error;
     }
   },
 
-  /**
-   * Get customer by ID
-   */
-  getCustomerById: async (id: string): Promise<Customer | null> => {
+  async getCustomerById(id: string) {
     try {
-      // For demo purposes, we're using mock data
-      const customer = mockCustomers.find((c) => c.id === id)
-      return customer || null
-
-      // In a real app with an API:
-      // return await api.get<Customer>(`/customers/${id}`)
-    } catch (error) {
-      console.error(`Failed to fetch customer with ID ${id}:`, error)
-      return null
+      const res = await axios.get(`${API_URL}${id}`);
+      return res.data;
+    } catch (error: any) {
+      console.error(
+        "Error fetching customer details:", 
+        error.response?.data || error.message
+      );
+      throw error;
     }
   },
 
-  /**
-   * Create a new customer
-   */
-  createCustomer: async (customer: Omit<Customer, "id" | "totalOrders" | "totalSpent">): Promise<Customer | null> => {
+  async createCustomer(data: FormData) {
     try {
-      // For demo purposes, we're generating a mock response
-      const newCustomer: Customer = {
-        ...customer,
-        id: Math.random().toString(36).substring(2, 9),
+      const res = await axios.post(API_URL, data, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      const newCustomer = res.data.customer || res.data;
+      if (!newCustomer) {
+        throw new Error("Invalid response from the server");
+      }
+
+      return {
+        id: newCustomer.cusId?.toString() || "",
+        name: newCustomer.cusName || "",
+        email: newCustomer.cusEmail || "",
+        phone: newCustomer.cusPhone || "",
+        address: newCustomer.cusAddress || "",
+        status: newCustomer.cusStatus || false,
+        role: newCustomer.cusRole || "customer",
+        image: newCustomer.cusImage || "",
+        bio: newCustomer.cusBio || "",
+        createdAt: newCustomer.created_at ? new Date(newCustomer.created_at) : new Date(),
+        updatedAt: newCustomer.updated_at ? new Date(newCustomer.updated_at) : new Date(),
         totalOrders: 0,
-        totalSpent: 0,
+        totalSpent: 0
+      };
+    } catch (error) {
+      console.error(
+        "Error in createCustomer:",
+        (error as any).response?.data || (error as any).message
+      );
+      throw error;
+    }
+  },
+
+  async updateCustomer(id: string, data: FormData) {
+    try {
+      const res = await axios.put(`${API_URL}${id}`, data, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+  
+      const updatedCustomer = res.data.customer || res.data;
+  
+      return {
+        id: updatedCustomer.cusId?.toString() || id,
+        name: updatedCustomer.cusName || data.get("cusName"),
+        email: updatedCustomer.cusEmail || data.get("cusEmail"),
+        phone: updatedCustomer.cusPhone || data.get("cusPhone"),
+        address: updatedCustomer.cusAddress || data.get("cusAddress"),
+        status: updatedCustomer.cusStatus ?? data.get("cusStatus") === "true",
+        role: updatedCustomer.cusRole || data.get("cusRole") || "customer",
+        image: updatedCustomer.cusImage || data.get("cusImage") || "",
+        bio: updatedCustomer.cusBio || data.get("cusBio") || "",
+        createdAt: updatedCustomer.created_at ? new Date(updatedCustomer.created_at) : new Date(),
+        updatedAt: updatedCustomer.updated_at ? new Date(updatedCustomer.updated_at) : new Date(),
+        totalOrders: 0,
+        totalSpent: 0
+      };
+    } catch (error: any) {
+      if (error.response) {
+        console.error("Error in updateCustomer:", error.response.data || error.message);
+        throw new Error(
+          error.response.data?.message || "An error occurred while updating the customer."
+        );
+      } else if (error.request) {
+        console.error("No response received from the server:", error.request);
+        throw new Error("No response received from the server. Please try again later.");
+      } else {
+        console.error("Unexpected error in updateCustomer:", error.message);
+        throw new Error("An unexpected error occurred. Please try again.");
       }
-
-      return newCustomer
-
-      // In a real app with an API:
-      // return await api.post<Customer>('/customers', customer)
-    } catch (error) {
-      console.error("Failed to create customer:", error)
-      return null
     }
   },
 
-  /**
-   * Update an existing customer
-   */
-  updateCustomer: async (id: string, customer: Partial<Customer>): Promise<Customer | null> => {
+  async deleteCustomer(id: string) {
     try {
-      // For demo purposes, we're generating a mock response
-      const existingCustomer = mockCustomers.find((c) => c.id === id)
-      if (!existingCustomer) return null
-
-      const updatedCustomer: Customer = {
-        ...existingCustomer,
-        ...customer,
-      }
-
-      return updatedCustomer
-
-      // In a real app with an API:
-      // return await api.put<Customer>(`/customers/${id}`, customer)
-    } catch (error) {
-      console.error(`Failed to update customer with ID ${id}:`, error)
-      return null
+      await axios.delete(`${API_URL}${id}`);
+      return true;
+    } catch (error: any) {
+      console.error(
+        "Error deleting customer:", 
+        error.response?.data || error.message
+      );
+      throw error;
     }
   },
-
-  /**
-   * Delete a customer
-   */
-  deleteCustomer: async (id: string): Promise<boolean> => {
-    try {
-      // For demo purposes, we're returning a success response
-      return true
-
-      // In a real app with an API:
-      // await api.delete(`/customers/${id}`)
-      // return true
-    } catch (error) {
-      console.error(`Failed to delete customer with ID ${id}:`, error)
-      return false
-    }
-  },
-
-  /**
-   * Get top customers by total spent
-   */
-  getTopCustomers: async (limit = 5): Promise<Customer[]> => {
-    try {
-      // For demo purposes, we're using mock data
-      return [...mockCustomers].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, limit)
-
-      // In a real app with an API:
-      // return await api.get<Customer[]>(`/customers/top?limit=${limit}`)
-    } catch (error) {
-      console.error("Failed to fetch top customers:", error)
-      return []
-    }
-  },
-}
-
+};
