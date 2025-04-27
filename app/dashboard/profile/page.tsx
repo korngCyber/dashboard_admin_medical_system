@@ -1,34 +1,17 @@
+// app/dashboard/profile/page.tsx
 "use client"
 
-import type React from "react"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageHeader } from "@/components/page-header"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { authService } from "@/services/auth-service"
 import { Mail, Phone, MapPin, Shield } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
 
 export default function ProfilePage() {
-  const [user, setUser] = useState({
-    name: "",
-    email: "",
-    role: "",
-    phone: "+1 (555) 123-4567",
-    address: "123 Medical St, Health City, HC 12345",
-    bio: "Medical administrator with 5+ years of experience in healthcare management.",
-  })
+  const { user } = useAuth()
 
-  useEffect(() => {
-    const userData = authService.getCurrentUser()
-    if (userData) {
-      setUser((prev) => ({
-        ...prev,
-        name: userData.name,
-        email: userData.email,
-        role: userData.role,
-      }))
-    }
-  }, [])
+  if (!user) return null
 
   return (
       <div className="flex flex-col gap-6">
@@ -43,7 +26,7 @@ export default function ProfilePage() {
             <CardContent className="flex flex-col items-center text-center px-8">
               <div className="relative mb-6">
                 <Avatar className="h-32 w-32 border-4 border-background shadow-xl">
-                  <AvatarImage src="/placeholder.svg?height=128&width=128" alt={user.name} />
+                  <AvatarImage src={user.avatar || "/placeholder.svg?height=128&width=128"} alt={user.name} />
                   <AvatarFallback className="text-3xl">{user.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="mt-4">
@@ -70,14 +53,14 @@ export default function ProfilePage() {
                     <Phone className="h-5 w-5 text-primary" />
                     <div className="text-left">
                       <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                      <p className="text-sm font-medium">{user.phone}</p>
+                      <p className="text-sm font-medium">{user.phone || "Not provided"}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
                     <MapPin className="h-5 w-5 text-primary" />
                     <div className="text-left">
                       <p className="text-sm font-medium text-muted-foreground">Address</p>
-                      <p className="text-sm font-medium">{user.address}</p>
+                      <p className="text-sm font-medium">{user.address || "Not provided"}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">

@@ -6,11 +6,25 @@
   <component name="ChangeListManager">
     <list default="true" id="669e3d41-7763-49b1-a92e-f853d1142628" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/dashboard/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/dashboard/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/dashboard/profile/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/dashboard/profile/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/components/auth-provider.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/auth-provider.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/axios.ts" beforeDir="false" afterPath="$PROJECT_DIR$/lib/axios.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pnpm-lock.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pnpm-lock.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/auth-service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth-service.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="TypeScript JSX File" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -75,7 +89,8 @@
       <workItem from="1745337551292" duration="846000" />
       <workItem from="1745338442491" duration="2521000" />
       <workItem from="1745684309794" duration="1478000" />
-      <workItem from="1745738504451" duration="1368000" />
+      <workItem from="1745738504451" duration="6428000" />
+      <workItem from="1745747785289" duration="2535000" />
     </task>
     <servers />
   </component>
