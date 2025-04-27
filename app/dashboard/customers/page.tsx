@@ -2,187 +2,203 @@
 
 import { useEffect, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, Eye } from "lucide-react"
+import { ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DataTable } from "@/components/data-table"
 import { PageHeader } from "@/components/page-header"
-import { StatusBadge } from "@/components/status-badge"
-import type { Order } from "@/types"
-import { orderService } from "@/services/order-service"
+import { customerService } from "@/services/customer-service"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import type { Customer } from "@/types"
 
-export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [currentOrder, setCurrentOrder] = useState<Order | null>(null)
+export default function CustomersPage() {
+    const [customers, setCustomers] = useState<Customer[]>([])
+    const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+    const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null)
+    const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setIsLoading(true)
-        const data = await orderService.getOrders()
-        const transformedOrders: Order[] = data.map((order: any) => ({
-          id: order.orderId.toString(),
-          orderNumber: order.orderId.toString().padStart(5, '0'),
-          date: new Date(order.orderDate).toLocaleDateString(),
-          customer: {
-            id: order.cusId.toString(),
-            name: `Customer ${order.cusId}`,
-            email: "customer@example.com"
-          },
-          status: order.orderStatus,
-          total: parseFloat(order.orderTotalAmount),
-          items: []
-        }))
-        setOrders(transformedOrders)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch orders")
-      } finally {
-        setIsLoading(false)
-      }
+    useEffect(() => {
+        async function fetchCustomers() {
+            try {
+                setIsLoading(true)
+                const data = await customerService.getCustomers()
+                const transformedCustomers = data.map((customer: any) => ({
+                    id: customer.cusId?.toString() || "N/A",
+                    name: customer.cusName || "Unknown",
+                    email: customer.cusEmail || "N/A",
+                    phone: customer.cusPhone || "N/A",
+                    address: customer.cusAddress || "N/A",
+                    status: customer.cusStatus || false,
+                    role: customer.cusRole || "unknown",
+                    image: customer.cusImage || "",
+                    bio: customer.cusBio || "",
+                    createdAt: customer.created_at ? new Date(customer.created_at) : new Date(),
+                    updatedAt: customer.updated_at ? new Date(customer.updated_at) : new Date()
+                }))
+                setCustomers(transformedCustomers)
+            } catch (error) {
+                console.error("Failed to fetch customers:", error)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchCustomers()
+    }, [])
+
+    const columns: ColumnDef<Customer>[] = [
+        {
+            accessorKey: "name",
+            header: ({ column }) => (
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+                    Name
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            ),
+            cell: ({ row }) => (
+                <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                        <AvatarImage src={row.original.image || ""} alt={row.getValue("name")} />
+                        <AvatarFallback>{getInitials(row.getValue("name"))}</AvatarFallback>
+                    </Avatar>
+                    <div className="font-medium">{row.getValue("name")}</div>
+                </div>
+            )
+        },
+        {
+            accessorKey: "status",
+            header: "Status",
+            cell: ({ row }) => (
+                <Badge variant={row.getValue("status") ? "success" : "destructive"}>
+                    {row.getValue("status") ? "Active" : "Inactive"}
+                </Badge>
+            )
+        },
+        {
+            accessorKey: "email",
+            header: "Email",
+            cell: ({ row }) => <div>{row.getValue("email")}</div>
+        },
+        {
+            accessorKey: "phone",
+            header: "Phone",
+            cell: ({ row }) => <div>{row.getValue("phone")}</div>
+        },
+        {
+            accessorKey: "role",
+            header: "Role",
+            cell: ({ row }) => <div className="capitalize">{row.getValue("role")}</div>
+        }
+    ]
+
+    function getInitials(name: string) {
+        return name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2)
     }
 
-    fetchOrders()
-  }, [])
+    function formatDate(date: Date) {
+        return new Intl.DateTimeFormat("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+        }).format(date)
+    }
 
-  const columns: ColumnDef<Order>[] = [
-    {
-      accessorKey: "orderNumber",
-      header: ({ column }) => {
-        return (
-            <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-              Order
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            </Button>
-        )
-      },
-      cell: ({ row }) => <div className="font-medium">#{row.getValue("orderNumber")}</div>,
-    },
-    {
-      accessorKey: "date",
-      header: ({ column }) => {
-        return (
-            <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-              Date
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            </Button>
-        )
-      },
-      cell: ({ row }) => <div>{row.getValue("date")}</div>,
-    },
-    {
-      accessorKey: "customer.name",
-      header: "Customer",
-      cell: ({ row }) => <div>{row.original.customer.name}</div>,
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => {
-        return <StatusBadge status={row.getValue("status")} variant="order" />
-      },
-    },
-    {
-      id: "actions",
-      cell: ({ row }) => {
-        const order = row.original
-        return (
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setCurrentOrder(order)
-                  setIsViewDialogOpen(true)
-                }}
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              View
-            </Button>
-        )
-      },
-    },
-  ]
-
-  if (error) {
     return (
         <div className="flex flex-col gap-4">
-          <PageHeader title="Orders" description="Manage your medicine orders" />
-          <div className="text-center text-red-500 p-4">Error: {error}</div>
-        </div>
-    )
-  }
+            <PageHeader title="Customers" description="Manage your customers" />
 
-  if (isLoading) {
-    return (
-        <div className="flex flex-col gap-4">
-          <PageHeader title="Orders" description="Manage your medicine orders" />
-          <div className="text-center p-4">Loading orders...</div>
-        </div>
-    )
-  }
-
-  return (
-      <div className="flex flex-col gap-4">
-        <PageHeader title="Orders" description="Manage your medicine orders" />
-
-        <DataTable columns={columns} data={orders} searchKey="orderNumber" searchPlaceholder="Filter orders..." />
-
-        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Order Details</DialogTitle>
-              <DialogDescription>Detailed information about the selected order</DialogDescription>
-            </DialogHeader>
-            {currentOrder && (
-                <div className="grid gap-6 py-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Order Information</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">Order Number</p>
-                          <p className="text-sm">#{currentOrder.orderNumber}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">Date</p>
-                          <p className="text-sm">{currentOrder.date}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">Status</p>
-                          <StatusBadge status={currentOrder.status} variant="order" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">Total</p>
-                          <p className="text-sm">${currentOrder.total}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Customer Information</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">Name</p>
-                          <p className="text-sm">{currentOrder.customer.name}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">Email</p>
-                          <p className="text-sm">{currentOrder.customer.email}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+            {isLoading ? (
+                <div className="flex items-center justify-center h-64">
+                    <p>Loading customers...</p>
                 </div>
+            ) : (
+                <DataTable
+                    columns={columns}
+                    data={customers}
+                    searchKey="name"
+                    searchPlaceholder="Filter customers..."
+                />
             )}
-          </DialogContent>
-        </Dialog>
-      </div>
-  )
+
+            <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+                <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Customer Details</DialogTitle>
+                    </DialogHeader>
+                    {currentCustomer && (
+                        <div className="grid gap-6 py-4">
+                            <div className="flex items-center gap-4">
+                                <Avatar className="h-16 w-16">
+                                    <AvatarImage src={currentCustomer.image || ""} alt={currentCustomer.name} />
+                                    <AvatarFallback>{getInitials(currentCustomer.name)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <h2 className="text-xl font-bold">{currentCustomer.name}</h2>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Badge variant={currentCustomer.status ? "success" : "destructive"}>
+                                            {currentCustomer.status ? "Active" : "Inactive"}
+                                        </Badge>
+                                        <Badge variant="outline" className="capitalize">
+                                            {currentCustomer.role}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Contact Information</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-medium">Email</p>
+                                            <p className="text-sm">{currentCustomer.email}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-medium">Phone</p>
+                                            <p className="text-sm">{currentCustomer.phone}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-medium">Address</p>
+                                            <p className="text-sm">{currentCustomer.address}</p>
+                                        </div>
+                                        {currentCustomer.bio && (
+                                            <div className="space-y-1">
+                                                <p className="text-sm font-medium">Bio</p>
+                                                <p className="text-sm">{currentCustomer.bio}</p>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Account Information</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-medium">Customer Since</p>
+                                            <p className="text-sm">{formatDate(currentCustomer.createdAt)}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-medium">Last Updated</p>
+                                            <p className="text-sm">{formatDate(currentCustomer.updatedAt)}</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+        </div>
+    )
 }
