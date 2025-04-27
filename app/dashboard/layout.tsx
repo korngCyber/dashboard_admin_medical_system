@@ -74,6 +74,7 @@ export default function DashboardLayout({
     { name: "Customers", href: "/dashboard/customers", icon: Users },
     { name: "Categories", href: "/dashboard/categories", icon: Box },
     { name: "Orders", href: "/dashboard/orders", icon: ShoppingCart },
+    { name: "Staff", href: "/dashboard/staffs", icon: Users },
   ]
 
   const toggleTheme = () => {
@@ -150,11 +151,11 @@ export default function DashboardLayout({
 
         <div className="hidden md:flex md:flex-1 md:items-center md:gap-4 md:px-6">
           <div className="relative hidden md:flex items-center">
-            <input
-              type="search"
-              placeholder="Search..."
-              className="rounded-full bg-muted/30 pl-4 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 w-64 transition-all focus:w-80"
-            />
+            {/*<input*/}
+            {/*  type="search"*/}
+            {/*  placeholder="Search..."*/}
+            {/*  className="rounded-full bg-muted/30 pl-4 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 w-64 transition-all focus:w-80"*/}
+            {/*/>*/}
           </div>
         </div>
 

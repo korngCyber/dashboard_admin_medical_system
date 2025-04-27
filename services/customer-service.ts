@@ -2,11 +2,12 @@ import axios from "axios";
 import type { Customer } from "@/types";
 
 const API_URL = "http://localhost:3002/api/v1/customer/";
+const allCus = "http://localhost:3002/api/v1/customer/customer/all";
 
 export const customerService = {
   async getCustomers() {
     try {
-      const res = await axios.get(API_URL);
+      const res = await axios.get(allCus);
       
       // Check if the response contains an array of customers
       // If it's not an array, ensure we return an array for the page component
